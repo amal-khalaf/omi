@@ -455,7 +455,6 @@ void HandleSIGTERM(int sig)
 {
     if (sig == SIGTERM)
     {
-        trace_SigTERM_received((serverType == OMI_SERVER) ? "server" : "engine");
         if (s_dataPtr->enginePid > 0)
         {
             int status;
@@ -479,7 +478,6 @@ void HandleSIGHUP(int sig)
 {
     if (sig == SIGHUP)
     { 
-        trace_SigHUP_received((serverType == OMI_SERVER) ? "server" : "engine");
         if (s_dataPtr->enginePid > 0)
         {
             kill(s_dataPtr->enginePid, SIGHUP);
@@ -1208,10 +1206,6 @@ void ServerCleanup(int pidfile)
     Log_Close();
 
 #if defined(USE_ALLOCATOR)
-
-# if defined(USE_PAL_ATEXIT)
-    PAL_AtexitCall();
-# endif
 
     PAL_DumpAllocStats();
 

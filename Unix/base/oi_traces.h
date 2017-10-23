@@ -916,10 +916,6 @@ OI_EVENT("Selector_RemoveAllHandlers: selector=%p, handler=%p, name=%T")
 void trace_Selector_RemoveAllHandlers(void * selector, void * handler, const MI_Char * name);
 OI_EVENT("Server failed to authenticate user: (%s)")
 void trace_ServerFailedPamCheckUser(const char* user);
-OI_EVENT("SIGHUP received at: (%s)")
-void trace_SigHUP_received(const char* user);
-OI_EVENT("SIGTERM received at: (%s)")
-void trace_SigTERM_received(const char* user);
 
 
 /******************************** DEBUG TRACES ***********************************/

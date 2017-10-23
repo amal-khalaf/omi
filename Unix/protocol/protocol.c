@@ -42,9 +42,6 @@
 # define LOGX2(a)
 #endif
 
-#if defined(CONFIG_ENABLE_PREEXEC)
-# include "base/preexec.h"
-#endif
 /*
 **==============================================================================
 **
@@ -1255,16 +1252,6 @@ static MI_Boolean _SendPamCheckUserReq(
 }
 
 #if defined(CONFIG_ENABLE_PREEXEC)
-/* Creates and sends ExecPreexecReq request message */
-
-typedef void (*PreexecCtxCompletion)(void *ctx);
-
-struct Protocol_PreexecContext
-{
-    void *context;
-    PreexecCtxCompletion completion;
-};
-
 MI_Boolean SendExecutePreexecRequest(
     void *contextp, 
     PreexecCtxCompletion completion,
@@ -1313,8 +1300,8 @@ MI_Boolean SendExecutePreexecRequest(
 
         Message_AddRef(&req->base);
 
-        _PrepareMessageForSending(protocolSocket);
-        retVal = _RequestCallbackWrite(protocolSocket);
+        PrepareMessageForSending(protocolSocket);
+        retVal = RequestCallbackWrite(protocolSocket);
     }
 
     ExecPreexecReq_Release(req);
@@ -1325,12 +1312,12 @@ MI_Boolean SendExecutePreexecRequest(
 /* Creates and sends ExecPreexecResp request message */
 MI_Boolean SendExecutePreexecResponse(
     void *contextp, 
-    int retval
+    int retval,
+    ProtocolSocket *protocolSocket
     )
 {
     ExecPreexecResp *req = NULL;
     MI_Boolean retVal = MI_TRUE;
-    ProtocolSocket *protocolSocket = s_permanentSocket;
 
     req = ExecPreexecResp_New();
     if (!req)
@@ -1349,73 +1336,13 @@ MI_Boolean SendExecutePreexecResponse(
 
         Message_AddRef(&req->base);
 
-        _PrepareMessageForSending(protocolSocket);
-        retVal = _RequestCallbackWrite(protocolSocket);
+        PrepareMessageForSending(protocolSocket);
+        retVal = RequestCallbackWrite(protocolSocket);
     }
 
     ExecPreexecResp_Release(req);
 
     return retVal;
-}
-
-static MI_Boolean _ProcessExecPreexecReq(
-    ProtocolSocket* handler,
-    Message *msg)
-{
-    ExecPreexecReq* preexecMsg;
-    MI_Boolean ret;
-    uid_t uid;
-    gid_t gid;
-    void *contextp;
-    const char *preexec;
-
-    if (msg->tag != ExecPreexecReqTag)
-        return MI_FALSE;
-
-    if (!s_permanentSocket)
-    {
-         s_permanentSocket = handler;
-    }
-    preexecMsg = (ExecPreexecReq*) msg;
-
-    uid = preexecMsg->uid;
-    gid = preexecMsg->gid;
-    preexec  = preexecMsg->preexec;
-    contextp = (void*)(preexecMsg->context);
-
-    /* server waiting engine's request */
-
-    int r = PreExec_ExecuteOnServer(contextp, preexec, uid, gid);
-    if (r != 0)
-    {
-        trace_PreExecFailed(preexecMsg->preexec);
-    }
-
-    ret = SendExecutePreexecResponse(contextp, r);
-
-    return ret;
-}
-
-static MI_Boolean _ProcessExecPreexecResp(
-    ProtocolSocket* handler,
-    Message *msg)
-{
-    ExecPreexecResp* preexecMsg;
-    struct Protocol_PreexecContext *preexecCtx;
-
-    if (msg->tag != ExecPreexecRespTag)
-        return MI_FALSE;
-
-    preexecMsg = (ExecPreexecResp*) msg;
-    preexecCtx = (struct Protocol_PreexecContext *)(preexecMsg->context);
-
-    /* engine waiting server's response */
-
-    preexecCtx->completion(preexecCtx->context);
-
-    PAL_Free(preexecCtx);
-
-    return MI_TRUE;
 }
 #endif
 
@@ -1689,18 +1616,6 @@ static Protocol_CallbackResult _ProcessReceivedMessage(
             if( _ProcessVerifySocketConnMessage(handler, msg) )
                 ret = PRT_CONTINUE;
         }
-#if defined(CONFIG_ENABLE_PREEXEC)
-        else if (msg->tag == ExecPreexecReqTag)
-        {
-            if( _ProcessExecPreexecReq(handler, msg) )
-                ret = PRT_CONTINUE;
-        }
-        else if (msg->tag == ExecPreexecRespTag)
-        {
-            if( _ProcessExecPreexecResp(handler, msg) )
-                ret = PRT_CONTINUE;
-        }
-#endif /* CONFIG_ENABLE_PREEXEC */
         else if (PRT_AUTH_OK != handler->engineAuthState)
         {
             trace_EngineCredentialsNotReceived();
